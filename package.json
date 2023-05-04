@@ -1,0 +1,24 @@
+{
+  "name": "valorant-xmpp-watcher",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^18.16.3",
+    "@types/node-fetch": "^2.6.3",
+    "typescript": "^5.0.4"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^4.2.2",
+    "node-fetch": "^2.6.9",
+    "winston": "^3.8.2",
+    "winston-daily-rotate-file": "^4.7.1"
+  }
+}
