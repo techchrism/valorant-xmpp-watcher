@@ -1,6 +1,5 @@
 import {promises as fs} from 'node:fs'
-import {Logger} from "winston";
-import fetch from "node-fetch";
+import {Logger} from 'winston'
 import {Cookie} from 'set-cookie-parser'
 import {createCookieString, mergeCookies, parseCookieString, parseSetCookieString} from './util/cookies'
 
@@ -40,7 +39,7 @@ export class CredentialManager {
         })
 
         this._logger.verbose(`Response status: ${response.status}`)
-        this._logger.verbose(`Response headers: ${JSON.stringify(response.headers.raw())}`)
+        this._logger.verbose(`Response headers: ${JSON.stringify([...response.headers.entries()])}`)
 
         const location = response.headers.get('location')
         if(location === null) throw new Error('No location header in response!')
@@ -76,7 +75,7 @@ export class CredentialManager {
             try {
                 await this._attemptReauth()
                 break
-            } catch (e) {
+            } catch(e) {
                 this._logger.error(`Failed to reauth: ${e}`)
                 this._logger.info(`Retrying in ${delay}ms...`)
                 await new Promise(resolve => setTimeout(resolve, delay))
@@ -94,7 +93,7 @@ export class CredentialManager {
                 'Content-Type': 'application/json',
                 'User-Agent': ''
             }
-        })).json() as {entitlements_token: string}
+        })).json() as { entitlements_token: string }
 
         this._entitlement = entitlementResponse['entitlements_token']
     }

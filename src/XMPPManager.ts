@@ -1,10 +1,10 @@
 import {CredentialManager} from './CredentialManager'
-import {asyncSocketRead, asyncSocketWrite, waitForConnect} from "./asyncSocketUtils";
-import {TLSSocket, connect} from "node:tls";
-import {Logger} from "winston";
-import fetch from "node-fetch";
-import {clearInterval} from "timers";
+import {asyncSocketRead, asyncSocketWrite, waitForConnect} from './asyncSocketUtils'
+import {connect, TLSSocket} from 'node:tls'
+import {Logger} from 'winston'
+import {clearInterval} from 'timers'
 import * as fs from 'node:fs'
+import {getOrLoadRiotConfig} from './util/riotConfig'
 
 export class XMPPManager {
     private readonly _credentialManager: CredentialManager
@@ -36,13 +36,30 @@ export class XMPPManager {
         await asyncSocketWrite(socket, data)
     }
 
-    async connect(host: string, streamID: string) {
+    async connect() {
         const pasToken = await this._fetchPASToken()
+        const token = await this._credentialManager.getToken()
+        const entitlement = await this._credentialManager.getEntitlement()
+
+        // Get affinity from PAS token
+        const pasParts = pasToken.split('.')
+        if(pasParts.length !== 3) throw new Error('Invalid PAS token')
+        const pasData = JSON.parse(Buffer.from(pasParts[1], 'base64').toString('utf-8'))
+        const affinity = pasData['affinity']
+        if(affinity === undefined) throw new Error('Invalid PAS token, missing affinity')
+
+        // Get affinity host and domain from riot config
+        const riotConfig = await getOrLoadRiotConfig(token, entitlement)
+        if(!riotConfig['chat.affinities'].hasOwnProperty(affinity)) throw new Error('PAS token affinity not found in riot config affinities')
+        if(!riotConfig['chat.affinity_domains'].hasOwnProperty(affinity)) throw new Error('PAS token affinity not found in riot config affinity_domains')
+        const affinityHost = riotConfig['chat.affinities'][affinity]
+        const affinityDomain = riotConfig['chat.affinity_domains'][affinity]
 
         const xmppLogDir = './xmpp-logs'
         try {
             await fs.promises.mkdir(xmppLogDir)
-        } catch (ignored) {}
+        } catch(ignored) {
+        }
         const xmppLogPath = `${xmppLogDir}/${Date.now()}.txt`
         const logStream = fs.createWriteStream(xmppLogPath)
         // Log header format
@@ -53,7 +70,7 @@ export class XMPPManager {
 
         this._logger.info('Connecting to XMPP server...')
         this._socket = connect({
-            host,
+            host: affinityHost,
             port: 5223
         })
         await waitForConnect(this._socket)
@@ -72,18 +89,18 @@ export class XMPPManager {
 
         this._logger.info('Connected to XMPP server, authenticating...')
 
-        await this._asyncSocketWriteLog(this._socket, logStream, `<?xml version="1.0"?><stream:stream to="${streamID}.pvp.net" version="1.0" xmlns:stream="http://etherx.jabber.org/streams">`)
+        await this._asyncSocketWriteLog(this._socket, logStream, `<?xml version="1.0"?><stream:stream to="${affinityDomain}.pvp.net" version="1.0" xmlns:stream="http://etherx.jabber.org/streams">`)
         let incomingData = ''
         do {
             incomingData = (await asyncSocketRead(this._socket)).toString()
         } while(!incomingData.includes('X-Riot-RSO-PAS'))
 
         this._logger.info('Authentication stage 2...')
-        await this._asyncSocketWriteLog(this._socket, logStream, `<auth mechanism="X-Riot-RSO-PAS" xmlns="urn:ietf:params:xml:ns:xmpp-sasl"><rso_token>${await this._credentialManager.getToken()}</rso_token><pas_token>${pasToken}</pas_token></auth>`)
+        await this._asyncSocketWriteLog(this._socket, logStream, `<auth mechanism="X-Riot-RSO-PAS" xmlns="urn:ietf:params:xml:ns:xmpp-sasl"><rso_token>${token}</rso_token><pas_token>${pasToken}</pas_token></auth>`)
         await asyncSocketRead(this._socket)
 
         this._logger.info('Authentication stage 3...')
-        await this._asyncSocketWriteLog(this._socket, logStream, `<?xml version="1.0"?><stream:stream to="${streamID}.pvp.net" version="1.0" xmlns:stream="http://etherx.jabber.org/streams">`)
+        await this._asyncSocketWriteLog(this._socket, logStream, `<?xml version="1.0"?><stream:stream to="${affinityDomain}.pvp.net" version="1.0" xmlns:stream="http://etherx.jabber.org/streams">`)
         do {
             incomingData = (await asyncSocketRead(this._socket)).toString()
         } while(!incomingData.includes('stream:features'))
@@ -97,7 +114,7 @@ export class XMPPManager {
         await asyncSocketRead(this._socket)
 
         this._logger.info('Authentication stage 6...')
-        await this._asyncSocketWriteLog(this._socket, logStream, `<iq id="xmpp_entitlements_0" type="set"><entitlements xmlns="urn:riotgames:entitlements"><token xmlns="">${await this._credentialManager.getEntitlement()}</token></entitlements></iq>`)
+        await this._asyncSocketWriteLog(this._socket, logStream, `<iq id="xmpp_entitlements_0" type="set"><entitlements xmlns="urn:riotgames:entitlements"><token xmlns="">${entitlement}</token></entitlements></iq>`)
         await asyncSocketRead(this._socket)
 
         this._logger.info('Finished authentication')
@@ -108,7 +125,7 @@ export class XMPPManager {
         this._logger.info('Requesting presence...')
         await this._asyncSocketWriteLog(this._socket, logStream, '<presence/>')
 
-        const keepAliveInterval = setInterval(async () => {
+        const keepAliveInterval = setInterval(async() => {
             if(this._socket !== null) {
                 await this._asyncSocketWriteLog(this._socket, logStream, ' ')
             }
@@ -119,7 +136,7 @@ export class XMPPManager {
 
             // Might be a memory leak, but it probably doesn't happen often enough to matter
             this._logger.warn('XMPP connection closed, reconnecting in 5 seconds...')
-            setTimeout(() => this.connect(host, streamID), 5000)
+            setTimeout(() => this.connect(), 5000)
         })
     }
 }
