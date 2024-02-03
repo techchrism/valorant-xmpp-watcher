@@ -64,8 +64,15 @@ export class CredentialManager {
     private async _renewCredentials(): Promise<void> {
         this._logger.info('Refreshing credentials...')
         if(this._cookies === null) {
-            this._cookies = parseCookieString(await fs.readFile('./cookies.txt', 'utf-8'))
-            this._logger.info(`Loaded ${this._cookies.length} cookies from file`)
+            try {
+                this._cookies = parseCookieString(await fs.readFile('./cookies.txt', 'utf-8'))
+                this._logger.info(`Loaded ${this._cookies.length} cookies from file`)
+            } catch(e) {
+                const startingCookies = process.env['XMPP_WATCHER_STARTING_COOKIES']
+                if(startingCookies === undefined) throw new Error('No starting cookies provided and no cookies file found!')
+                this._cookies = parseCookieString(startingCookies)
+                this._logger.info(`Loaded ${this._cookies.length} cookies from environment`)
+            }
         }
 
         let delay = 0
