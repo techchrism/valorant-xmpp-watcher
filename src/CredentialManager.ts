@@ -1,17 +1,18 @@
 import {promises as fs} from 'node:fs'
 import {Logger} from "winston";
 import fetch from "node-fetch";
+import {Cookie} from 'set-cookie-parser'
+import {createCookieString, mergeCookies, parseCookieString, parseSetCookieString} from './util/cookies'
 
-// From https://github.com/techchrism/valorant-api/blob/trunk/src/credentialManager/LocalCredentialManager.ts
+// Modified from https://github.com/techchrism/valorant-api/blob/trunk/src/credentialManager/LocalCredentialManager.ts
 // Subtracts this amount from expiration to avoid requesting resources with an about-to-expire cred
 const expirationDiff = 60 * 1000
-const ssidRegex = new RegExp('ssid=(.+?);')
 
 export class CredentialManager {
     private _entitlement: string | null = null
     private _token: string | null = null
     private _expiration: number = 0
-    private _ssid: string | null = null
+    private _cookies: Cookie[] | null = null
     private readonly _logger: Logger
 
     constructor(logger: Logger) {
@@ -34,7 +35,7 @@ export class CredentialManager {
             redirect: 'manual',
             headers: {
                 'User-Agent': '',
-                'Cookie': `ssid=${this._ssid}`
+                'Cookie': createCookieString(this._cookies!)
             }
         })
 
@@ -53,19 +54,19 @@ export class CredentialManager {
         //TODO further validation on these values
         const token = searchParams.get('access_token')
         const entitlement = searchParams.get('id_token')
-        const ssid = response.headers.get('set-cookie')!.match(ssidRegex)![1]
 
         this._token = token
         this._entitlement = entitlement
         this._expiration = (Number(searchParams.get('expires_in')) * 1000) + Date.now() - expirationDiff
         this._logger.info(`Credentials refreshed, expires at ${new Date(this._expiration)}`)
-        this._ssid = ssid
+        this._cookies = mergeCookies(this._cookies!, parseSetCookieString(response.headers.get('set-cookie')!))
     }
 
     private async _renewCredentials(): Promise<void> {
         this._logger.info('Refreshing credentials...')
-        if(this._ssid === null) {
-            this._ssid = await fs.readFile('./ssid.txt', 'utf-8')
+        if(this._cookies === null) {
+            this._cookies = parseCookieString(await fs.readFile('./cookies.txt', 'utf-8'))
+            this._logger.info(`Loaded ${this._cookies.length} cookies from file`)
         }
 
         let delay = 0
@@ -83,8 +84,8 @@ export class CredentialManager {
             }
         }
 
-        // Re-write ssid.txt
-        await fs.writeFile('./ssid.txt', this._ssid)
+        // Re-write cookies.txt
+        await fs.writeFile('./cookies.txt', createCookieString(this._cookies))
 
         const entitlementResponse = await (await fetch('https://entitlements.auth.riotgames.com/api/token/v1', {
             method: 'POST',

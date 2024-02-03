@@ -1,6 +1,6 @@
 {
   "name": "valorant-xmpp-watcher",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "",
   "main": "dist/index.js",
   "scripts": {
@@ -11,14 +11,16 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@types/node": "^18.16.3",
-    "@types/node-fetch": "^2.6.3",
-    "typescript": "^5.0.4"
+    "@types/node": "^20.11.16",
+    "@types/node-fetch": "^2.6.11",
+    "@types/set-cookie-parser": "^2.4.7",
+    "typescript": "^5.3.3"
   },
   "dependencies": {
-    "fast-xml-parser": "^4.2.2",
-    "node-fetch": "^2.6.9",
-    "winston": "^3.8.2",
+    "fast-xml-parser": "^4.3.4",
+    "node-fetch": "^2.7.0",
+    "set-cookie-parser": "^2.6.0",
+    "winston": "^3.11.0",
     "winston-daily-rotate-file": "^4.7.1"
   }
 }
