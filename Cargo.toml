@@ -1,0 +1,12 @@
+[package]
+name = "valorant-xmpp-watcher"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "native-tls"] }
+native-tls = "0.2"
+anyhow = "1.0.104"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+base64 = "0.23.1"

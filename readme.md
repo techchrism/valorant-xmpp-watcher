@@ -5,9 +5,20 @@ A tool to connect to Riot XMPP servers to watch for presence updates and chat me
 Exports XMPP logs in a format compatible with [Valorant XMPP Log Viewer](https://github.com/techchrism/valorant-xmpp-log-viewer)
 
 ## Usage
-- Clone the repo and run `npm install`
-- Run `npm run build` to build the project
-- Obtain the account cookies and put them in `cookies.txt`
-  - You can use [Riot Cookie String Generator](https://riotcookiestringgen.techchrism.me/) to quickly obtain your cookies
-  - Alternatively, you can put the cookies in the environment variable `XMPP_WATCHER_STARTING_COOKIES` which the xmpp watcher will use if `cookies.txt` is not found
-- Run `node .` to start the watcher
+
+Install rust/cargo and run `cargo run`
+
+||||
+|--|--|--|
+|Environment Variable|Default|Description|
+|`VALORANT_XMPP_WATCHER_SAVED_TOKENS_PATH`|`./saved-tokens.json`|File to read/write saved tokens to. If loading this file fails, new tokens will be generated using the "seed" tokens.|
+|`VALORANT_XMPP_WATCHER_SEED_TOKENS_PATH`|`./seed-tokens.json`|File to load initial tokens from.|
+|`VALORANT_XMPP_WATCHER_LOGS_PATH`|`./logs`|Directory to put XMPP logs. Created if it doesn't exist.|
+
+`seed-tokens.json` format:
+```json
+{
+    "id_token": "...",
+    "refresh_token": "..."
+}
+```
